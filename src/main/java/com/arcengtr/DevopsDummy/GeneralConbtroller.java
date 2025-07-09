@@ -10,5 +10,5 @@ public class GeneralConbtroller {
     public String hello() {
         return "Hello World of DevOps";
     }
-    
+
 }

@@ -49,6 +49,9 @@
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
 		</plugins>
+		<finalName>
+			DevOpsDummy
+		</finalName>
 	</build>
 
 </project>

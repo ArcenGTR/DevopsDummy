@@ -1,0 +1,59 @@
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'DOCKERTAG', defaultValue: '', description: 'Docker image tag to update in the manifest.')
+    }
+
+    stages {
+        stage('Clone Manifest Repository') {
+            steps {
+                echo 'Cloning Kubernetes manifest repository...'
+                checkout scm
+            }
+        }
+
+        stage('Update Git Manifest with New Tag') {
+            steps {
+                script {
+                    catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                        withCredentials([usernamePassword(credentialsId: 'github', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+                            echo "Configuring Git user for commit..."
+                            sh "git config user.email vecher.klasni@gmail.com"
+                            sh "git config user.name ArcenGTR"
+
+                            echo "Current deployment.yaml content before modification:"
+                            sh "cat deployment.yaml"
+
+                            echo "Updating Docker image tag for arcengtr/devops-dummy-image to: ${params.DOCKERTAG}"
+                            sh "sed -i 's+arcengtr/devops-dummy-image.*+arcengtr/devops-dummy-image:${params.DOCKERTAG}+g' deployment.yaml"
+
+                            echo "deployment.yaml content after modification:"
+                            sh "cat deployment.yaml"
+
+                            echo "Committing changes to Git..."
+                            sh "git add ."
+                            sh "git commit -m 'Done by Jenkins Job updatemanifest: ${env.BUILD_NUMBER} (Image tag: ${params.DOCKERTAG})'"
+
+                            echo "Pushing changes to GitHub repository"
+                            sh "git push https://github.com/ArcenGTR/DevopsDummy HEAD:main"
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline finished.'
+            cleanWs()
+        }
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+    }
+}

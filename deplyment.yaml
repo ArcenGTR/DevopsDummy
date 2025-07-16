@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: springboot-devops-dummy-deployment
+  name: springboot-devops-dummy-deployment
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: springboot-devops-dummy-deployment
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: springboot-devops-dummy-deployment
+    spec:
+      containers:
+        - image: arcengtr/devops-dummy-image:1
+          name: springboot-devops-dummy-deployment
+          resources: {}
+status: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lb-service
+  labels:
+    app: lb-service
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 8081
+  selector:
+    app: springboot-devops-dummy-deployment
+
+
+

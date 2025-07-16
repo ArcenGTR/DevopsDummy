@@ -1,31 +1,65 @@
 pipeline {
     agent any
 
-    tools {
-        maven "M3"
+    environment {
+        DOCKER_IMAGE_NAME = 'arcengtr/devops-dummy-image'
+        JAR_FILE_NAME = 'target/DevOpsDummy.jar'
     }
 
     stages {
-        stage('Build Maven') {
+        stage('Clone Repository') {
             steps {
-                checkout scmGit(branches: [[name: '*/main']], extensions: [], userRemoteConfigs: [[url: 'https://github.com/ArcenGTR/DevopsDummy']])
+                echo 'Cloning Git repository...'
+                checkout scm
+            }
+        }
+
+        stage('Build Spring Boot Application') {
+            steps {
+                echo 'Building Spring Boot application with Maven...'
                 sh 'mvn clean install'
             }
         }
+
         stage('Build Docker Image') {
             steps {
+                echo "Building Docker image: ${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}"
                 script {
-                    sh 'docker build -t arcengtr/devops-dummy-image:latest .'
+                    app = docker.build("${DOCKER_IMAGE_NAME}:${env.BUILD_NUMBER}", ".")
                 }
             }
         }
-        stage ('Push Image to DockerHub') {
+
+        stage('Push Docker Image') {
             steps {
-                withCredentials([string(credentialsId: 'DockerHubPwd', variable: 'DOCKERHUB_PWD')]) {
-                    sh 'docker login -u arcengtr -p ${DOCKERHUB_PWD}'
-                    sh 'docker push arcengtr/devops-dummy-image:latest'
+                echo "Pushing Docker image to Docker Hub..."
+                script {
+                    docker.withRegistry("https://registry.hub.docker.com", 'dockerhub') {
+                        app.push("${env.BUILD_NUMBER}")
+                        app.push("latest")
+                    }
                 }
             }
+        }
+
+        stage('Trigger Manifest Update Job') {
+            steps {
+                echo "Triggering 'UpdateManifest' job with DOCKERTAG: ${env.BUILD_NUMBER}"
+                build job: 'UpdateManifest', parameters: [string(name: 'DOCKERTAG', value: env.BUILD_NUMBER)]
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline finished.'
+            cleanWs() // Agent workspace cleaning
+        }
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
         }
     }
 }
